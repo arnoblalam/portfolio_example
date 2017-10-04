@@ -1,0 +1,11 @@
+name: portfolio_example
+title: portfolio_example
+account: info-metrics
+server: shinyapps.io
+appId: 217028
+bundleId: 1010163
+url: https://info-metrics.shinyapps.io/portfolio_example/
+when: 1507110402.06353
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: inequality_portfolio.R

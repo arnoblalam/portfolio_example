@@ -9,80 +9,113 @@
 
 library(shiny)
 library(quantmod)
-library(dplyr)
-
-# Symbols for the sector indices.  We use ETF's because the sector data is not
-# available from Yahoo Finance.
-
-tickers <- c("XLY", # Consumer Discretionary 
-             "XLP", # Consumer Staples
-             "XLE", # Energy
-             "XLF", # Financials
-             "XLV", # Health Care
-             "XLI", # Industrials
-             "XLB", # Materials
-             "XLK", # Information Technology
-             "XLU", # Utilities
-             "SPY") # Index  
-
-# Corresponding sector names
-sectors <- c("Consumer Discretionary", "Consumer Staples",
-             "Energy", "Financials", "Health Care", "Industrials",
-             "Materials", "Information Technology", "Utilities", "Index")
-
-etf_tickers_sectors <- data_frame(ticker = tickers, 
-                                  sector = sectors)
-
-etf_weekly_returns <- function(ticker) {
-symbols <- getSymbols(tickers, src = "google")
-
-etf_prices <- do.call(merge, lapply(symbols, function(x) Cl(get(x))))
-
-etf_returns <- do.call(merge, lapply(etf_prices, 
-                                     function(x) periodReturn(x, 
-                                                              period = 'weekly', 
-                                                              type = 'log')))
-
-#Change the column names to the sector names from our dataframe above.
-
-colnames(etf_returns) <- etf_tickers_sectors$sector
-
-etf_returns
-
-}
-
-etf_returns <- etf_weekly_returns(etf_tickerS_sectorS$ticker)
-
-sector_index_correlation <- function(x, window) {
-    
-    merged_xts <- merge(x, etf_returns$'Index')
-    
-    merged_xts$rolling_test <- rollapply(merged_xts, window, 
-                                         function(x) cor(x[,1], x[,2], 
-                                                         use = "pairwise.complete.obs"), 
-                                         by.column = FALSE)
-    
-    names(merged_xts) <- c("Sector Returns", "SPY Returns", "Sector/SPY Correlation")
-    
-    merged_xts
-}
-
+library(dygraphs)
+library(Rsolnp)
+library(lubridate)
+library(highcharter)
+library(foreach)
 
 # Define server logic required to draw a histogram
+
 shinyServer(function(input, output) {
-   
-  output$distPlot <- renderPlot({
     
-    # generate bins based on input$bins from ui.R
-    x    <- faithful[, 2] 
-    bins <- seq(min(x), max(x), length.out = input$bins + 1)
+    etf_returns <- eventReactive(input$go, {
+        tickers <- unlist(strsplit(input$tickers,"\n"))
+        sectors <- unlist(strsplit(input$names, "\n"))
+        
+        etf_yearly_returns <- function(ticker) {
+            symbols <- getSymbols(ticker, src = "google", from =  floor_date(Sys.Date(), "years") - years(input$years))
+            etf_prices <- do.call(merge, lapply(symbols, function(x) Cl(get(x))))
+            
+            etf_returns <- do.call(merge, lapply(etf_prices, 
+                                                 function(x) periodReturn(x, 
+                                                                          period = 'yearly', 
+                                                                          type = 'log',
+                                                                          subset = '1990::')))
+            
+            # Change the column names to the sector names from our dataframe above.
+            
+            colnames(etf_returns) <- sectors
+            
+            etf_returns*100
+            
+        }
+        etf_yearly_returns(tickers)
+    })
     
-    # draw the histogram with the specified number of bins
-    hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    solution <- eventReactive(input$go, {
+        
+        # Pick a desired retrun mu0 and a risk sigma
+        mu0 <- as.numeric(input$mu0)
+        sigma <- as.numeric(input$sigma)
+        
+        # Average returns for eachs sector
+        ret <- apply(etf_returns(), 2, mean)
+        cov_ <- cor(etf_returns())
+        init_values <- rep(1/length(tickers()), length(tickers()))
+        # Objective function to be minimized 
+        obj <- function(p) {
+            h <- ifelse(p == 0, 0, p*log(p))
+            sum(h)
+        }
+        
+        # Equality constraints
+        eqfun <- function(p) {
+            sum(p)
+        }
+        
+        # Values of the constraints
+        eqB <- 1
+        
+        # Inequality Constraints
+        ineqfun <- function(p) {
+            z1 <- as.vector(p %*% ret)
+            z2 <- as.vector(sqrt(p %*% cov_ %*% p))
+            return(c(z1, z2))
+        }
+        
+        ineqLB <- c(mu0, 0)
+        ineqUB <- c(Inf, sigma)
+        
+        # Lower bound on the p (probabilities must be positive)
+        LB <- rep(0, length(init_values))
+        
+        # Solve the problem
+        solnp(pars = init_values,
+              fun = obj,
+              eqfun = eqfun,
+              eqB = eqB,
+              ineqfun = ineqfun,
+              ineqLB = ineqLB,
+              ineqUB = ineqUB,
+              LB = LB)
+        
+        
+    })
     
-  })
+    sectors <- eventReactive(input$go, {
+        unlist(strsplit(input$names, "\n"))
+    })
+    
+    tickers <- eventReactive(input$go, {
+        unlist(strsplit(input$tickers,"\n"))
+    })
+    
+    output$allocations <- renderHighchart({
+        highchart() %>%
+            hc_title(text="Portfolio Allocation") %>%
+            hc_add_series_labels_values(sectors(), 
+                                        round(solution()$pars*100, 2), 
+                                        type = "pie",
+                                        name = "Bar", 
+                                        colorByPoint = TRUE,
+                                        dataLabels = list(format =  "{point.name} {point.y}%")) %>%
+            hc_tooltip(pointFormat = "{point.y}%")
+        
+    })
+    output$stock_returns <- renderDygraph({
+        dygraph(cbind("Equally Weighted" = apply(etf_returns(), 1, mean),
+                      "Info-Metrics" = apply(etf_returns(), 1, weighted.mean, solution()$pars)))
+    })
   
 })
-
-etf_returns <- etf_weekly_returns(etf_tickerS_sectorS$ticker)
-

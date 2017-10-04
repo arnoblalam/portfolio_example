@@ -8,26 +8,56 @@
 #
 
 library(shiny)
+library(dygraphs)
+library(highcharter)
 
 # Define UI for application that draws a histogram
 shinyUI(fluidPage(
   
   # Application title
-  titlePanel("Old Faithful Geyser Data"),
+  titlePanel("Optimal Portfolio Allocation (Diversification)
+Using Info-Metrics (Chapter 5, Model 5.4)"),
   
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-       sliderInput("bins",
-                   "Number of bins:",
-                   min = 1,
-                   max = 50,
-                   value = 30)
+       textAreaInput("tickers",
+                   "Enter ticker symbols(one per line):",
+                   rows = 10,
+                   value = 
+"XLY
+XLP
+XLE
+XLF
+XLV
+XLI
+XLB
+XLK
+XLU"),
+       textAreaInput("names",
+                 "Enter the names of the stocks (one per line)",
+                 rows = 10,
+                 value = 
+"Consumer Discretionary
+Consumer Staples
+Energy
+Financials
+Health Care
+Industrials
+Materials
+Information Technology
+Utilities"),
+        sliderInput("years", "How many years of data to estimate returns and correlation?",
+                    min = 2, max = 10, value=5, step = 1, round = TRUE),
+        textInput("mu0", "Minimum Return (Mean)", value = 5),
+        textInput("sigma", "Maximum Risk (Variance)", value = 1),
+        actionButton("go", "Update")
     ),
     
     # Show a plot of the generated distribution
     mainPanel(
-       plotOutput("distPlot")
+        highchartOutput("allocations"),
+       dygraphOutput("stock_returns")
     )
   )
 ))
