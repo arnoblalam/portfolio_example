@@ -51,7 +51,7 @@ shinyServer(function(input, output) {
         
         # Average returns for eachs sector
         ret <- apply(etf_returns(), 2, mean)
-        cov_ <- cor(etf_returns())
+        cov_ <- cov(etf_returns())
         init_values <- rep(1/length(tickers()), length(tickers()))
         # Objective function to be minimized 
         obj <- function(p) {
@@ -115,7 +115,9 @@ shinyServer(function(input, output) {
     })
     output$stock_returns <- renderDygraph({
         dygraph(cbind("Equally Weighted" = apply(etf_returns(), 1, mean),
-                      "Info-Metrics" = apply(etf_returns(), 1, weighted.mean, solution()$pars)))
+                      "Info-Metrics" = apply(etf_returns(), 1, weighted.mean, solution()$pars)),
+                main = "Return per year", ylab = "Return per year") %>%
+            dyOptions(drawPoints = TRUE, pointSize = 2)
     })
   
 })

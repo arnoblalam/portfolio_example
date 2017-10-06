@@ -15,8 +15,8 @@ library(highcharter)
 shinyUI(fluidPage(
   
   # Application title
-  titlePanel("Optimal Portfolio Allocation (Diversification)
-Using Info-Metrics (Chapter 5, Model 5.4)"),
+  titlePanel(HTML("<h1 style='font-size: 2rem'>Optimal Portfolio Allocation (Diversification)
+Using Info-Metrics (Chapter 5, Model 5.4)</h1>")),
   
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
@@ -50,7 +50,7 @@ Utilities"),
         sliderInput("years", "How many years of data to estimate returns and correlation?",
                     min = 2, max = 10, value=5, step = 1, round = TRUE),
         textInput("mu0", "Minimum Return (Mean)", value = 5),
-        textInput("sigma", "Maximum Risk (Variance)", value = 1),
+        textInput("sigma", "Maximum Risk (Variance)", value = 10),
         actionButton("go", "Update")
     ),
     
