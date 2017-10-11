@@ -88,9 +88,10 @@ shinyServer(function(input, output) {
               ineqfun = ineqfun,
               ineqLB = ineqLB,
               ineqUB = ineqUB,
-              LB = LB)
+              LB = LB, 
+              control = list(outer.iter = 50, innter.itter = 200))
         
-        if (solution$converence != 0) {
+        if (solution$convergence != 0) {
             showNotification("Solution is infeasible.  Please relax one or more of the constraints", 
                              duration = 0)
         }
