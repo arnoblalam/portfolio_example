@@ -81,7 +81,7 @@ shinyServer(function(input, output) {
         LB <- rep(0, length(init_values))
         
         # Solve the problem
-        solnp(pars = init_values,
+        solution <- solnp(pars = init_values,
               fun = obj,
               eqfun = eqfun,
               eqB = eqB,
@@ -90,7 +90,11 @@ shinyServer(function(input, output) {
               ineqUB = ineqUB,
               LB = LB)
         
-        
+        if (solution$converence != 0) {
+            showNotification("Solution is infeasible.  Please relax one or more of the constraints", 
+                             duration = 0)
+        }
+        return(solution)
     })
     
     sectors <- eventReactive(input$go, {
